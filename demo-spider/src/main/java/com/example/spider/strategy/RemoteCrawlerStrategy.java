@@ -3,6 +3,7 @@ package com.example.spider.strategy;
 import com.example.common.domain.model.CrawlerRequest;
 import com.example.common.domain.model.CrawlerResult;
 import com.example.common.domain.model.CrawlerStrategy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
@@ -16,16 +17,13 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 @Component
 @RefreshScope
+@RequiredArgsConstructor
 public class RemoteCrawlerStrategy implements CrawlerStrategy {
 
     private final RestTemplate restTemplate;
 
     @Value("${crawler.remote.url:http://localhost:8081/api/crawler/execute}")
     private String remoteUrl;
-
-    public RemoteCrawlerStrategy(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
 
     @Override
     public CrawlerResult crawl(CrawlerRequest request) {

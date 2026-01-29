@@ -2,7 +2,6 @@ package com.example.spider.config;
 
 import com.example.common.domain.model.CrawlerStrategy;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
@@ -25,7 +24,6 @@ public class CrawlerStrategyRouter {
 
     private final Map<String, CrawlerStrategy> strategyMap;
 
-    @Autowired
     public CrawlerStrategyRouter(List<CrawlerStrategy> strategies) {
         this.strategyMap = strategies.stream()
                 .collect(Collectors.toMap(CrawlerStrategy::getType, s -> s));
