@@ -1,9 +1,9 @@
 server:
-  port: 8081
+  port: 8084
 
 spring:
   application:
-    name: demo-schedule
+    name: demo-spider
   cloud:
     nacos:
       discovery:
@@ -27,15 +27,6 @@ crawler:
   mode: local
   remote:
     url: http://localhost:8084/api/spider/crawl/execute
-
-# 定时任务配置 (可通过 Nacos 热更新)
-schedule:
-  spider:
-    cron: "0 0 */2 * * ?"
-    target-url: ""
-    keyword: ""
-    max-pages: 5
-    proxy: ""
 
 logging:
   level:

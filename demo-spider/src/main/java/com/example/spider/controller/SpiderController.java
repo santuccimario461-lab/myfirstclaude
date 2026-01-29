@@ -1,4 +1,4 @@
-package com.example.schedule.controller;
+package com.example.spider.controller;
 
 import com.example.common.domain.model.CrawlerRequest;
 import com.example.common.domain.model.CrawlerResult;
@@ -12,20 +12,20 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * 调度管理 REST API
- * 手动触发抓取 + 查看爬虫状态
+ * Spider REST API
+ * 爬虫服务的 HTTP 入口，支持手动触发抓取和查看爬虫模式
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/schedule")
+@RequestMapping("/api/spider")
 @RequiredArgsConstructor
-public class ScheduleController {
+public class SpiderController {
 
     private final CrawlerService crawlerService;
     private final CrawlerStrategyRouter strategyRouter;
 
     /**
-     * 手动触发抓取
+     * 手动触发抓取（参数形式）
      */
     @PostMapping("/crawl")
     public ApiResponse<CrawlerResult> triggerCrawl(
@@ -34,7 +34,7 @@ public class ScheduleController {
             @RequestParam(required = false, defaultValue = "5") Integer maxPages,
             @RequestParam(required = false) String proxy) {
 
-        log.info("手动触发抓取: url={}, keyword={}, maxPages={}", url, keyword, maxPages);
+        log.info("触发抓取: url={}, keyword={}, maxPages={}", url, keyword, maxPages);
 
         CrawlerRequest request = CrawlerRequest.builder()
                 .url(url)
@@ -48,7 +48,7 @@ public class ScheduleController {
     }
 
     /**
-     * POST body 方式触发
+     * 触发抓取（JSON Body 形式）
      */
     @PostMapping("/crawl/execute")
     public ApiResponse<CrawlerResult> executeCrawl(@RequestBody CrawlerRequest request) {

@@ -22,7 +22,7 @@ public class RemoteCrawlerStrategy implements CrawlerStrategy {
 
     private final RestTemplate restTemplate;
 
-    @Value("${crawler.remote.url:http://localhost:8081/api/crawler/execute}")
+    @Value("${crawler.remote.url:http://localhost:8084/api/spider/crawl/execute}")
     private String remoteUrl;
 
     @Override
