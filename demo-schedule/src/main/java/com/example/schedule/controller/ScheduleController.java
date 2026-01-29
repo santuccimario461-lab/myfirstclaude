@@ -1,16 +1,19 @@
 package com.example.schedule.controller;
 
-import com.example.common.domain.entity.Article;
-import com.example.common.dto.response.ApiResponse;
-import com.example.spider.service.SpiderService;
+import com.example.common.domain.model.CrawlerRequest;
+import com.example.common.domain.model.CrawlerResult;
+import com.example.common.dto.ApiResponse;
+import com.example.spider.config.CrawlerStrategyRouter;
+import com.example.spider.service.CrawlerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 
 /**
- * REST endpoints to manually trigger spider crawl jobs
+ * 调度管理 REST API
+ * 手动触发抓取 + 查看爬虫状态
  */
 @Slf4j
 @RestController
@@ -18,38 +21,50 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ScheduleController {
 
-    private final SpiderService spiderService;
+    private final CrawlerService crawlerService;
+    private final CrawlerStrategyRouter strategyRouter;
 
     /**
-     * Manually trigger crawling all configured targets
+     * 手动触发抓取
      */
-    @PostMapping("/crawl/all")
-    public ApiResponse<Integer> triggerCrawlAll() {
-        log.info("Manual trigger: crawl all targets");
-        List<Article> articles = spiderService.crawlAllTargets();
-        return ApiResponse.success("Crawl completed", articles.size());
-    }
-
-    /**
-     * Manually trigger crawling a specific target by name
-     */
-    @PostMapping("/crawl/{targetName}")
-    public ApiResponse<Integer> triggerCrawlTarget(@PathVariable String targetName) {
-        log.info("Manual trigger: crawl target {}", targetName);
-        List<Article> articles = spiderService.crawlTarget(targetName);
-        return ApiResponse.success("Crawl completed for " + targetName, articles.size());
-    }
-
-    /**
-     * Crawl a single URL on demand
-     */
-    @PostMapping("/crawl/url")
-    public ApiResponse<String> triggerCrawlUrl(
+    @PostMapping("/crawl")
+    public ApiResponse<CrawlerResult> triggerCrawl(
             @RequestParam String url,
-            @RequestParam(defaultValue = "manual") String sourceName,
-            @RequestParam(defaultValue = "general") String category) {
-        log.info("Manual trigger: crawl URL {}", url);
-        Article article = spiderService.crawlSinglePage(url, sourceName, category);
-        return ApiResponse.success("Article crawled", article.getId().getValue());
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "5") Integer maxPages,
+            @RequestParam(required = false) String proxy) {
+
+        log.info("手动触发抓取: url={}, keyword={}, maxPages={}", url, keyword, maxPages);
+
+        CrawlerRequest request = CrawlerRequest.builder()
+                .url(url)
+                .keyword(keyword)
+                .maxPages(maxPages)
+                .proxy(proxy)
+                .build();
+
+        CrawlerResult result = crawlerService.execute(request);
+        return ApiResponse.success("抓取完成", result);
+    }
+
+    /**
+     * POST body 方式触发
+     */
+    @PostMapping("/crawl/execute")
+    public ApiResponse<CrawlerResult> executeCrawl(@RequestBody CrawlerRequest request) {
+        log.info("执行抓取请求: {}", request);
+        CrawlerResult result = crawlerService.execute(request);
+        return ApiResponse.success(result);
+    }
+
+    /**
+     * 查看当前爬虫模式
+     */
+    @GetMapping("/mode")
+    public ApiResponse<Map<String, Object>> getMode() {
+        return ApiResponse.success(Map.of(
+                "currentMode", strategyRouter.getCurrentMode(),
+                "availableModes", strategyRouter.getAvailableModes()
+        ));
     }
 }

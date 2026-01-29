@@ -22,22 +22,21 @@ elasticsearch:
   username: ${ES_USERNAME:}
   password: ${ES_PASSWORD:}
 
-# Schedule config
+# 爬虫模式: local / remote
+crawler:
+  mode: local
+  remote:
+    url: http://localhost:8081/api/schedule/crawl/execute
+
+# 定时任务配置 (可通过 Nacos 热更新)
 schedule:
   spider:
-    cron: "0 0 */2 * * ?"   # every 2 hours, overridable via Nacos
+    cron: "0 0 */2 * * ?"
+    target-url: ""
+    keyword: ""
+    max-pages: 5
+    proxy: ""
 
-# Spider config
-spider:
-  timeout: 15000
-  user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-  max-retries: 3
-  targets:
-    - name: hacker-news
-      url: https://news.ycombinator.com
-      category: tech
-      link-selector: "a.titlelink, .titleline a"
-      title-selector: "title"
-      content-selector: "body"
-      author-selector: ".hnuser"
-      max-pages: 1
+logging:
+  level:
+    com.example: debug

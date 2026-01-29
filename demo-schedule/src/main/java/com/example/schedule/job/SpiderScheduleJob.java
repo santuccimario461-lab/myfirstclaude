@@ -1,38 +1,74 @@
 package com.example.schedule.job;
 
-import com.example.common.domain.entity.Article;
-import com.example.spider.service.SpiderService;
+import com.example.common.domain.model.CrawlerRequest;
+import com.example.common.domain.model.CrawlerResult;
+import com.example.spider.service.CrawlerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
- * Scheduled job that periodically triggers spider crawling.
- * Cron expression can be overridden via Nacos config.
+ * 定时爬虫调度任务
+ * cron 表达式可通过 Nacos 配置热更新
  */
 @Slf4j
 @Component
+@RefreshScope
 @RequiredArgsConstructor
 public class SpiderScheduleJob {
 
-    private final SpiderService spiderService;
+    private final CrawlerService crawlerService;
+
+    /** 默认抓取目标 URL，可通过 Nacos 配置 */
+    @Value("${schedule.spider.target-url:}")
+    private String targetUrl;
+
+    /** 默认关键词，可通过 Nacos 配置 */
+    @Value("${schedule.spider.keyword:}")
+    private String keyword;
+
+    /** 最大抓取页数 */
+    @Value("${schedule.spider.max-pages:5}")
+    private Integer maxPages;
+
+    /** 代理地址 */
+    @Value("${schedule.spider.proxy:}")
+    private String proxy;
 
     /**
-     * Default: run every 2 hours.
-     * Override via config: schedule.spider.cron
+     * 定时抓取任务，默认每 2 小时执行
+     * 可通过 Nacos 配置 schedule.spider.cron 覆盖
      */
     @Scheduled(cron = "${schedule.spider.cron:0 0 */2 * * ?}")
     public void scheduledCrawl() {
-        log.info("=== Scheduled spider crawl started at {} ===", LocalDateTime.now());
+        if (targetUrl == null || targetUrl.isBlank()) {
+            log.info("=== 定时任务跳过: 未配置 schedule.spider.target-url ===");
+            return;
+        }
+
+        log.info("=== 定时爬取开始 {} ===", LocalDateTime.now());
         try {
-            List<Article> articles = spiderService.crawlAllTargets();
-            log.info("=== Scheduled crawl completed: {} articles indexed ===", articles.size());
+            CrawlerRequest request = CrawlerRequest.builder()
+                    .url(targetUrl)
+                    .keyword(keyword != null && !keyword.isBlank() ? keyword : null)
+                    .maxPages(maxPages)
+                    .proxy(proxy != null && !proxy.isBlank() ? proxy : null)
+                    .build();
+
+            CrawlerResult result = crawlerService.execute(request);
+
+            if (result.getSuccess()) {
+                log.info("=== 定时爬取完成: {} 条帖子, 耗时 {}ms ===", result.getTotal(), result.getCostTime());
+            } else {
+                log.error("=== 定时爬取失败: {} ===", result.getErrorMessage());
+            }
         } catch (Exception e) {
-            log.error("=== Scheduled crawl failed ===", e);
+            log.error("=== 定时爬取异常 ===", e);
         }
     }
 }

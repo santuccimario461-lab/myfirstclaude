@@ -1,6 +1,6 @@
 package com.example.common.infrastructure.config;
 
-import com.example.common.dto.response.ApiResponse;
+import com.example.common.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.stream.Collectors;
 
 /**
- * Global exception handler shared across modules
+ * 全局异常处理
  */
 @Slf4j
 @RestControllerAdvice

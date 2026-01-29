@@ -21,3 +21,7 @@ elasticsearch:
   scheme: ${ES_SCHEME:http}
   username: ${ES_USERNAME:}
   password: ${ES_PASSWORD:}
+
+logging:
+  level:
+    com.example: debug

@@ -1,4 +1,4 @@
-package com.example.common.dto.response;
+package com.example.common.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * Unified API response wrapper
+ * 统一 API 响应
  */
 @Data
 @Builder
@@ -23,27 +23,19 @@ public class ApiResponse<T> {
 
     public static <T> ApiResponse<T> success(T data) {
         return ApiResponse.<T>builder()
-                .code(200)
-                .message("success")
-                .data(data)
-                .timestamp(LocalDateTime.now())
-                .build();
+                .code(200).message("success").data(data)
+                .timestamp(LocalDateTime.now()).build();
     }
 
     public static <T> ApiResponse<T> success(String message, T data) {
         return ApiResponse.<T>builder()
-                .code(200)
-                .message(message)
-                .data(data)
-                .timestamp(LocalDateTime.now())
-                .build();
+                .code(200).message(message).data(data)
+                .timestamp(LocalDateTime.now()).build();
     }
 
     public static <T> ApiResponse<T> error(int code, String message) {
         return ApiResponse.<T>builder()
-                .code(code)
-                .message(message)
-                .timestamp(LocalDateTime.now())
-                .build();
+                .code(code).message(message)
+                .timestamp(LocalDateTime.now()).build();
     }
 }
