@@ -2,13 +2,13 @@ package com.example.spider.scraper;
 
 import com.example.common.domain.model.PostItem;
 import com.example.common.infrastructure.elasticsearch.service.PostItemEsService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -22,12 +22,12 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class T66yScraper {
 
     private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d+)");
 
-    @Autowired
-    private PostItemEsService postItemEsService;
+    private final PostItemEsService postItemEsService;
 
     /**
      * 对外暴露的抓取接口
@@ -50,7 +50,7 @@ public class T66yScraper {
         crawlRecursively(url, keyword, visitedUrls, allPosts, pages, proxyString);
 
         // 按热度降序排序
-        allPosts.sort((p1, p2) -> Integer.compare(p2.getSortValue(), p1.getSortValue()));
+        allPosts.sort(Comparator.comparingInt(PostItem::getSortValue).reversed());
 
         // 索引到 ES
         int indexedCount = postItemEsService.indexPosts(allPosts, keyword);
@@ -96,10 +96,8 @@ public class T66yScraper {
      */
     private void crawlRecursively(String url, String keyword, Set<String> visitedUrls,
                                   List<PostItem> allPosts, int maxPages, String proxyString) {
-        if (visitedUrls.size() >= maxPages && !visitedUrls.contains(url)) {
-            return;
-        }
         if (visitedUrls.contains(url)) return;
+        if (visitedUrls.size() >= maxPages) return;
         visitedUrls.add(url);
 
         log.info(">>> 正在请求: {} (代理: {})", url, proxyString == null ? "无" : proxyString);
@@ -116,10 +114,8 @@ public class T66yScraper {
                 String title = (titleEl != null) ? titleEl.text() : "未知标题";
 
                 // 关键词过滤
-                if (keyword != null && !keyword.isEmpty()) {
-                    if (!title.contains(keyword)) {
-                        continue;
-                    }
+                if (keyword != null && !keyword.isEmpty() && !title.contains(keyword)) {
+                    continue;
                 }
 
                 // 2. 提取帖子链接
