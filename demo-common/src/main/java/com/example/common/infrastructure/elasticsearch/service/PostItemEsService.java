@@ -8,6 +8,7 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.example.common.domain.model.PostItem;
 import com.example.common.infrastructure.elasticsearch.document.PostItemDocument;
 import com.example.common.infrastructure.elasticsearch.repository.PostItemRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -26,12 +27,12 @@ import java.util.stream.StreamSupport;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PostItemEsService {
 
     private static final String INDEX_NAME = "post_items";
 
-    @Autowired
-    private PostItemRepository postItemRepository;
+    private final PostItemRepository postItemRepository;
 
     @Autowired(required = false)
     private ElasticsearchClient elasticsearchClient;
@@ -44,30 +45,30 @@ public class PostItemEsService {
             return 0;
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        List<PostItemDocument> candidates = posts.stream()
+        var now = LocalDateTime.now();
+        var candidates = posts.stream()
                 .map(post -> convertToDocument(post, keyword, now))
-                .collect(Collectors.toList());
+                .toList();
 
-        List<String> candidateIds = candidates.stream()
+        var candidateIds = candidates.stream()
                 .map(PostItemDocument::getId)
-                .collect(Collectors.toList());
+                .toList();
 
         // 批量查询已存在的 ID
-        Iterable<PostItemDocument> existingDocs = postItemRepository.findAllById(candidateIds);
-        Set<String> existingIds = StreamSupport.stream(existingDocs.spliterator(), false)
+        var existingIds = StreamSupport.stream(postItemRepository.findAllById(candidateIds).spliterator(), false)
                 .map(PostItemDocument::getId)
                 .collect(Collectors.toSet());
 
         // 过滤已存在的文档
-        List<PostItemDocument> newDocuments = new ArrayList<>();
-        for (PostItemDocument doc : candidates) {
-            if (existingIds.contains(doc.getId())) {
-                log.debug("帖子已存在，跳过: {}", doc.getPostUrl());
-                continue;
-            }
-            newDocuments.add(doc);
-        }
+        var newDocuments = candidates.stream()
+                .filter(doc -> {
+                    if (existingIds.contains(doc.getId())) {
+                        log.debug("帖子已存在，跳过: {}", doc.getPostUrl());
+                        return false;
+                    }
+                    return true;
+                })
+                .toList();
 
         if (!newDocuments.isEmpty()) {
             postItemRepository.saveAll(newDocuments);
@@ -146,11 +147,11 @@ public class PostItemEsService {
             return response.hits().hits().stream()
                     .map(Hit::source)
                     .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+                    .toList();
 
         } catch (IOException e) {
             log.error("ES 高级搜索失败: {}", e.getMessage(), e);
-            return new ArrayList<>();
+            return List.of();
         }
     }
 
