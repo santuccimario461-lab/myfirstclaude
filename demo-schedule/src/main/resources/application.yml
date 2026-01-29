@@ -1,0 +1,43 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: demo-schedule
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        enabled: ${NACOS_ENABLED:false}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        enabled: ${NACOS_ENABLED:false}
+        file-extension: yml
+
+# Elasticsearch
+elasticsearch:
+  host: ${ES_HOST:localhost}
+  port: ${ES_PORT:9200}
+  scheme: ${ES_SCHEME:http}
+  username: ${ES_USERNAME:}
+  password: ${ES_PASSWORD:}
+
+# Schedule config
+schedule:
+  spider:
+    cron: "0 0 */2 * * ?"   # every 2 hours, overridable via Nacos
+
+# Spider config
+spider:
+  timeout: 15000
+  user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  max-retries: 3
+  targets:
+    - name: hacker-news
+      url: https://news.ycombinator.com
+      category: tech
+      link-selector: "a.titlelink, .titleline a"
+      title-selector: "title"
+      content-selector: "body"
+      author-selector: ".hnuser"
+      max-pages: 1
