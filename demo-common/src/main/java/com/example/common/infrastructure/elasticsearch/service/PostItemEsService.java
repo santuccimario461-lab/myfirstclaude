@@ -16,10 +16,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * Elasticsearch 服务类
@@ -39,44 +42,43 @@ public class PostItemEsService {
 
     /**
      * 批量索引帖子数据（带去重）
+     *
+     * 去重策略：
+     * 1. 输入去重 — 同批次按 postUrl 去重，保留 sortValue 最高的条目
+     * 2. ID 生成   — 基于 postUrl 的 SHA-256 摘要，杜绝 hashCode 碰撞
+     * 3. ES upsert — 直接 saveAll，ID 相同则覆盖（自动更新热度等字段）
      */
     public int indexPosts(List<PostItem> posts, String keyword) {
         if (posts == null || posts.isEmpty()) {
             return 0;
         }
 
+        // 1) 输入去重：相同 postUrl 保留 sortValue 最高的
+        var deduplicated = posts.stream()
+                .filter(p -> p.getPostUrl() != null)
+                .collect(Collectors.toMap(
+                        PostItem::getPostUrl,
+                        Function.identity(),
+                        (a, b) -> a.getSortValue() >= b.getSortValue() ? a : b,
+                        LinkedHashMap::new
+                ))
+                .values();
+
         var now = LocalDateTime.now();
-        var candidates = posts.stream()
+        var documents = deduplicated.stream()
                 .map(post -> convertToDocument(post, keyword, now))
                 .toList();
 
-        var candidateIds = candidates.stream()
-                .map(PostItemDocument::getId)
-                .toList();
+        // 2) 直接 saveAll — ES 按 _id upsert，新文档插入，旧文档覆盖更新
+        postItemRepository.saveAll(documents);
 
-        // 批量查询已存在的 ID
-        var existingIds = StreamSupport.stream(postItemRepository.findAllById(candidateIds).spliterator(), false)
-                .map(PostItemDocument::getId)
-                .collect(Collectors.toSet());
+        int skipped = posts.size() - documents.size();
+        log.info("【ES索引】upsert {} 条文档{}，关键词: {}",
+                documents.size(),
+                skipped > 0 ? String.format("（输入去重跳过 %d 条）", skipped) : "",
+                keyword);
 
-        // 过滤已存在的文档
-        var newDocuments = candidates.stream()
-                .filter(doc -> {
-                    if (existingIds.contains(doc.getId())) {
-                        log.debug("帖子已存在，跳过: {}", doc.getPostUrl());
-                        return false;
-                    }
-                    return true;
-                })
-                .toList();
-
-        if (!newDocuments.isEmpty()) {
-            postItemRepository.saveAll(newDocuments);
-            log.info("【ES索引】成功索引 {} 条新帖子（跳过 {} 条），关键词: {}",
-                    newDocuments.size(), posts.size() - newDocuments.size(), keyword);
-        }
-
-        return newDocuments.size();
+        return documents.size();
     }
 
     /**
@@ -182,7 +184,7 @@ public class PostItemEsService {
      */
     private PostItemDocument convertToDocument(PostItem post, String keyword, LocalDateTime crawlTime) {
         PostItemDocument doc = new PostItemDocument();
-        doc.setId(post.getPostUrl() != null ? String.valueOf(post.getPostUrl().hashCode()) : UUID.randomUUID().toString());
+        doc.setId(generateId(post.getPostUrl()));
         doc.setTitle(post.getTitle());
         doc.setRawData(post.getRawData());
         doc.setSortValue(post.getSortValue());
@@ -191,5 +193,23 @@ public class PostItemEsService {
         doc.setCrawlTime(crawlTime);
         doc.setKeyword(keyword);
         return doc;
+    }
+
+    /**
+     * 基于 postUrl 生成确定性 ID（SHA-256 前 32 位 hex）
+     * 相比 hashCode()：无碰撞风险，128-bit 空间
+     */
+    private String generateId(String postUrl) {
+        if (postUrl == null) {
+            return UUID.randomUUID().toString();
+        }
+        try {
+            var digest = MessageDigest.getInstance("SHA-256");
+            var hash = digest.digest(postUrl.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash, 0, 16);
+        } catch (NoSuchAlgorithmException e) {
+            // SHA-256 is guaranteed by the Java spec, this should never happen
+            return UUID.randomUUID().toString();
+        }
     }
 }
